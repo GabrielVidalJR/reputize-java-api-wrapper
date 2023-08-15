@@ -10,6 +10,14 @@ import java.util.Date;
 public interface Review {
 
     /**
+     * Gets the review ID.
+     *
+     * @return {@link String} The Review ID.
+     */
+
+    String getReviewID();
+
+    /**
      * Gets the review message.
      *
      * @return {@link String} The review message.

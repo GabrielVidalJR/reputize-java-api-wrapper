@@ -1,26 +1,36 @@
 package org.reputize.api.profile.impl;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.reputize.api.ReputizeAPI;
 import org.reputize.api.profile.Profile;
-import org.json.JSONObject;
+import org.reputize.api.request.impl.IDRequest;
+import org.reputize.api.request.impl.UsernameRequest;
+import org.reputize.api.request.type.RequestType;
+import org.reputize.api.review.impl.ReputizeReview;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.UUID;
 
 public class ReputizeProfile implements Profile {
 
     private final ReputizeAPI api;
     private final String id;
+    private final RequestType requestType;
     private final JSONObject profileData;
 
-    public ReputizeProfile(final ReputizeAPI api, final String id) {
+    public ReputizeProfile(final ReputizeAPI api, final String id, final RequestType requestType) {
         this.api = api;
         this.id = id;
-        this.profileData = this.fetchProfileData();
+        this.requestType = requestType;
+
+        if (this.requestType == RequestType.USERNAME) {
+            this.profileData = new UsernameRequest("user", api).fetchData(id);
+            return;
+        }
+
+        this.profileData = new IDRequest("user", api).fetchData(id);
     }
 
     @Override
@@ -55,52 +65,26 @@ public class ReputizeProfile implements Profile {
     }
 
     @Override
-    public int getTotalReviews() {
-        return this.profileData.optInt("total_reviews", 0);
+    public List<ReputizeReview> getReviews() {
+        final List<ReputizeReview> reviews = new LinkedList<>();
+
+        JSONArray reviewsArray = this.profileData.optJSONArray("reviews");
+
+        if (reviewsArray != null) {
+            for (int i = 0; i < reviewsArray.length(); i++) {
+
+                final JSONObject reviewObj = reviewsArray.getJSONObject(i);
+                final String id = reviewObj.getString("id");
+
+                reviews.add(this.api.buildReview(id, RequestType.ID));
+            }
+        }
+
+        return reviews;
     }
 
     @Override
     public double getTotalValue() {
         return this.profileData.optDouble("total_value", 0);
-    }
-
-    // Inside the fetchProfileData method
-    private JSONObject fetchProfileData() {
-        try {
-            String url = "https://www.reputize.org/api/v1/user?id=" + id;
-            String token = this.api.getToken();
-
-            URL apiUrl = new URL(url);
-            HttpURLConnection connection = (HttpURLConnection) apiUrl.openConnection();
-
-            connection.setRequestMethod("GET");
-            connection.setRequestProperty("Authorization", "Bearer " + token);
-            connection.setRequestProperty("Content-Type", "application/json");
-
-            int responseCode = connection.getResponseCode();
-
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                String inputLine;
-                StringBuilder response = new StringBuilder();
-
-                while ((inputLine = in.readLine()) != null) {
-                    response.append(inputLine);
-                }
-                in.close();
-
-                String jsonResponse = response.toString();
-                JSONObject jsonObject = new JSONObject(jsonResponse);
-                JSONObject userObject = jsonObject.getJSONObject("user"); // Extract the "user" object
-
-                return userObject;
-            } else {
-                System.out.println("Request failed with response code: " + responseCode);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return new JSONObject();
     }
 }

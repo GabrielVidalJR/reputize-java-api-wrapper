@@ -1,30 +1,41 @@
 package org.reputize.api.review.impl;
 
-import org.reputize.api.profile.impl.ReputizeProfile;
 import org.json.JSONObject;
+import org.reputize.api.ReputizeAPI;
+import org.reputize.api.profile.impl.ReputizeProfile;
+import org.reputize.api.request.impl.IDRequest;
+import org.reputize.api.request.type.RequestType;
+import org.reputize.api.review.Review;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-
-import org.reputize.api.ReputizeAPI;
-import org.reputize.api.review.Review;
 
 public class ReputizeReview implements Review {
 
     private final ReputizeAPI api;
     private final String id;
+    private RequestType requestType;
     private final JSONObject reviewData;
 
-    public ReputizeReview(final ReputizeAPI api, final String id) {
+    public ReputizeReview(final ReputizeAPI api, final String id, final RequestType requestType) {
         this.api = api;
         this.id = id;
-        this.reviewData = this.fetchReviewData();
+        this.requestType = requestType;
+
+        if (this.requestType == RequestType.USERNAME) {
+            this.reviewData = new IDRequest("review", api).fetchData(id);
+
+            System.out.println("[ReputizeAPI] A review cannot be requested via username, automatically converted to ID.");
+            return;
+        }
+
+        this.reviewData = new IDRequest("review", api).fetchData(id);
+    }
+
+    @Override
+    public String getReviewID() {
+        return this.id;
     }
 
     @Override
@@ -70,51 +81,12 @@ public class ReputizeReview implements Review {
 
     @Override
     public ReputizeProfile getSenderProfile() {
-        return this.api.buildProfile(this.getSenderID());
+        return this.api.buildProfile(this.getSenderID(), RequestType.ID);
     }
 
     @Override
     public ReputizeProfile getReceiverProfile() {
-        return this.api.buildProfile(this.getReceiverID());
-    }
-
-    private JSONObject fetchReviewData() {
-        try {
-            String url = "https://www.reputize.org/api/v1/review?id=" + id;
-            String token = this.api.getToken();
-
-            URL apiUrl = new URL(url);
-            HttpURLConnection connection = (HttpURLConnection) apiUrl.openConnection();
-
-            connection.setRequestMethod("GET");
-            connection.setRequestProperty("Authorization", "Bearer " + token);
-            connection.setRequestProperty("Content-Type", "application/json");
-
-            int responseCode = connection.getResponseCode();
-
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                String inputLine;
-                StringBuilder response = new StringBuilder();
-
-                while ((inputLine = in.readLine()) != null) {
-                    response.append(inputLine);
-                }
-                in.close();
-
-                String jsonResponse = response.toString();
-                JSONObject jsonObject = new JSONObject(jsonResponse);
-                JSONObject reviewObject = jsonObject.getJSONObject("review");
-
-                return reviewObject;
-            } else {
-                System.out.println("Request failed with response code: " + responseCode);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return new JSONObject();
+        return this.api.buildProfile(this.getReceiverID(), RequestType.ID);
     }
 
     private Date parseDate(String dateString) {

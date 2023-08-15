@@ -1,5 +1,8 @@
 package org.reputize.api.profile;
 
+import org.reputize.api.review.impl.ReputizeReview;
+
+import java.util.List;
 import java.util.UUID;
 
 public interface Profile {
@@ -53,12 +56,11 @@ public interface Profile {
     double getAverageRating();
 
     /**
-     * Get's the amount of reviews this user has had in total.
      *
-     * @return {@link Integer} containing total reviews.
+     * @return {@link List<ReputizeReview>} containing reviews.
      */
 
-    int getTotalReviews();
+    List<ReputizeReview> getReviews();
 
     /**
      * Get's the user's total value amongst all deals.
